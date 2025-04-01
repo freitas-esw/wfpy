@@ -317,3 +317,30 @@ def angular_distribution_plot(hist, xedges, yedges, figsize=[5.5,4.5], cmap='inf
   ax.minorticks_off()
   fig.colorbar(im, label=legend)
   return fig, ax
+
+def read_data(filename, sep=',', skiprows=0, header='infer'):
+  """
+  Read data from file
+  Args:
+    filename: name of the file from which to read the data
+    sep: separator between columns ('\s+' is useful for space separated data)
+    skiprows: number of rows to skip in the beggining
+    header: header for the columns data
+  Returns:
+    data: DataFrame with the read data
+  """
+  data = pd.read_csv(filename, sep=sep, skiprows=skiprows, header=header)
+  return data
+
+def smoothen_data(data, window=10, polyorder=3):
+  """
+  Smoothens data points
+  Args:
+    data: array with the data to be smoothened
+    window: length of the filter window
+    polyorder: order of the polynomial used to fit the samples
+  Returns:
+    smoothened data
+  """
+  smoothened = signal.sagvol_filter(data, window, polyorder)
+  return smoothened
