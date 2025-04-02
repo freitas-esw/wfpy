@@ -1,4 +1,4 @@
-.tar.gz
-.txt
+*.tar.gz
+*.txt
 PKG-INFO
-.pyc
+*.pyc
