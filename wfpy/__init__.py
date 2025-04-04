@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy
+import math as mt
 import jax.numpy as jnp
 from jax import vmap
 import matplotlib.pyplot as plt
@@ -43,6 +44,15 @@ plt.rcParams['ytick.right']         = 'on'
 plt.rcParams['text.usetex'] = False
 plt.rcParams['mathtext.fontset'] = 'cm'
 plt.rcParams['font.family'] = 'STIXGeneral'
+
+def factorize(num):
+    return [n for n in range(1, num + 1) if num % n == 0]
+
+def result_str(value, error):
+  d = - int(mt.floor(mt.log10(jnp.abs(error))))
+  e = int(jnp.round(error, d) * 10**d)
+  v = jnp.round(value , d)
+  return f'{v:.{d}f}'+'({:n})'.format(e)
 
 def basis_change(x, nx, ny, nz):
   """ Computes the new coordinates of a 3D vector in a new
@@ -215,7 +225,7 @@ def distance_distribution(data, np, ndim, bins=1250, distr_type='profile', norm_
   if density:
     norm = norm / N
 
-  y = hist / norm
+  y = hist * norm
 
   return r, y
 
@@ -246,7 +256,7 @@ def estimation(ene):
   """
   ave = jnp.mean(ene)
   if ene.size > 1:
-    std = jnp.sqrt((jnp.mean(ene**2)-jnp.mean(ene)**2)/(ene.size-1))
+    std = jnp.sqrt(jnp.sum((ene-jnp.mean(ene))**2)/(ene.size-1))
   else:
     std = jnp.nan
   return ave, std
