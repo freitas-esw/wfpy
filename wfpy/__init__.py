@@ -2,7 +2,7 @@ import pandas as pd
 import numpy
 import math as mt
 import jax.numpy as jnp
-from jax import vmap
+from jax import vmap, lax
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import scipy.signal as signal
@@ -68,6 +68,19 @@ def basis_change(x, nx, ny, nz):
   return jnp.array([x_new, y_new, z_new]).T
 vbasis_change = vmap(basis_change, in_axes=(0,None,None,None), out_axes=0)
 vbasis_change.__doc__ = 'Vmaped version of basis change'
+
+def jnp_fbody_basis(xref):
+  id1 = jnp.argmin(jnp.linalg.norm(xref, axis=-1))
+  x_max = xref[id1,:]
+  nz = x_max/jnp.linalg.norm(x_max)
+  dr = jnp.linalg.norm(xref[id1,:]-xref, axis=-1)
+  id2 = jnp.argmin(jnp.where(dr != 0.0, dr, jnp.inf))
+  j = lax.cond(id2 < id1, lambda: id2, lambda: id2+1) # id2 if id2<id else id2+1
+  ny = jnp.cross(nz, xref[j,:])/jnp.linalg.norm(jnp.cross(nz, xref[j,:]))
+  nx = -jnp.cross(nz, ny)
+  return nx, ny, nz
+vfbody_basis = vmap(jnp_fbody_basis)
+vfbody_basis.__doc__ = 'Vmaped version of jax numpy fbody basis'
 
 def fbody_basis(xref):
   id = numpy.argmax(numpy.linalg.norm(xref, axis=-1))
@@ -180,7 +193,7 @@ def relative_distance(data, np, ndim):
 vrelative_distance = vmap(relative_distance, in_axes=(0,None,None), out_axes=0)
 vrelative_distance.__doc__ = 'Vmaped version of relative distance'
 
-def distance_distribution(data, np, ndim, bins=1250, distr_type='profile', norm_type=None, density=True):
+def distance_distribution(data, np, ndim, bins=1250, distr_type='profile', norm_type='dist', density=True):
   """
   Computes distance distribution of samples.
   Args:
@@ -190,7 +203,7 @@ def distance_distribution(data, np, ndim, bins=1250, distr_type='profile', norm_
     nbins: number of bins to consider in the histogram 
     distr_type: type of distribution, either 'pair' or 'profile', where pair computes 
                 the pair distribution and profile computes the density profile
-    norm_type: type of normalization, either 'volume', 'radial', or None.
+    norm_type: type of normalization, either 'volume', 'radial', or 'dist'.
     density: either to normalize the integral to one (true) or to N (false), where N is the number of
              particles if distr_type is 'profile' or the number of pairs of particles if
              distr_type is 'pair'.
@@ -217,7 +230,42 @@ def distance_distribution(data, np, ndim, bins=1250, distr_type='profile', norm_
     norm = 1.0 / (nsamples * 4.0 * jnp.pi * r**2 * dr)
   elif norm_type == 'radial':
     norm = 1.0 / (nsamples * r**2 * dr)
-  elif norm_type == None:
+  elif norm_type == 'dist':
+    norm = 1.0 / (nsamples * dr)
+  else:
+    raise SystemExit("norm_type value not valid")
+
+  if density:
+    norm = norm / N
+
+  y = hist * norm
+
+  return r, y
+
+def distribution_histogram(data, bins=1250, norm_type='dist', density=True):
+  """
+  Make figure axes for histogram of the distribution of samples.
+  Args:
+    data: data to create the histogram in the shape (nsamples, N)
+    nbins: number of bins to consider in the histogram 
+    norm_type: type of normalization, either 'volume', 'radial', or 'dist'.
+    density: either to normalize the integral to one (true) or to N (false)
+  Returns:
+    r: centered bins positions
+    y: histogram values
+  """
+
+  nsamples, N = data.shape
+  data = jnp.reshape(data, [-1,])
+  hist, x = jnp.histogram(data, bins=bins, range=(0.0, data.max()))
+  r = 0.5 * (x[:-1] + x[1:])
+  dr = x[1:] - x[:-1]
+
+  if norm_type == 'volume':
+    norm = 1.0 / (nsamples * 4.0 * jnp.pi * r**2 * dr)
+  elif norm_type == 'radial':
+    norm = 1.0 / (nsamples * r**2 * dr)
+  elif norm_type == 'dist':
     norm = 1.0 / (nsamples * dr)
   else:
     raise SystemExit("norm_type value not valid")
@@ -256,7 +304,8 @@ def estimation(ene):
   """
   ave = jnp.mean(ene)
   if ene.size > 1:
-    std = jnp.sqrt(jnp.sum((ene-jnp.mean(ene))**2)/(ene.size-1))
+    #std = jnp.sqrt(jnp.sum((ene-jnp.mean(ene))**2)/(ene.size-1))
+    std = jnp.sqrt(jnp.sum((ene-jnp.mean(ene))**2)/(ene.size*(ene.size-1)))
   else:
     std = jnp.nan
   return ave, std
