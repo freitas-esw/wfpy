@@ -54,6 +54,15 @@ def result_str(value, error):
   v = jnp.round(value , d)
   return f'{v:.{d}f}'+'({:n})'.format(e)
 
+def find_peaks(data, npeaks=1, distance=None, height=None, prominence=None):
+  """
+  """
+  peaks, properties = signal.find_peaks(data, distance=distance, height=height, prominence=prominence)
+  peaks_heights = data[peaks]
+  ids = jnp.argsort(peaks_heights)[-npeaks:]
+  ids = jnp.sort(ids)
+  return peaks[ids], properties
+
 def basis_change(x, nx, ny, nz):
   """ Computes the new coordinates of a 3D vector in a new
   basis set composed by the orthonormal vector nx, ny, and nz. 
@@ -242,7 +251,7 @@ def distance_distribution(data, np, ndim, bins=1250, distr_type='profile', norm_
 
   return r, y
 
-def distribution_histogram(data, bins=1250, norm_type='dist', density=True):
+def distribution_histogram(data, bins=1250, norm_type='dist', density=True, rmin=0.0):
   """
   Make figure axes for histogram of the distribution of samples.
   Args:
@@ -257,7 +266,7 @@ def distribution_histogram(data, bins=1250, norm_type='dist', density=True):
 
   nsamples, N = data.shape
   data = jnp.reshape(data, [-1,])
-  hist, x = jnp.histogram(data, bins=bins, range=(0.0, data.max()))
+  hist, x = jnp.histogram(data, bins=bins, range=(rmin, data.max()))
   r = 0.5 * (x[:-1] + x[1:])
   dr = x[1:] - x[:-1]
 
@@ -348,7 +357,7 @@ def scatter_plot(x, y,
   if ylim: ax.set_ylim(ylim)
   return fig, ax
 
-def angular_distribution_plot(hist, xedges, yedges, figsize=[5.5,4.5], cmap='inferno', legend=''):
+def angular_distribution_plot(hist, xedges, yedges, figsize=[5.5,4.5], cmap='inferno', legend='', vmin=None, vmax=None):
   fig, ax = plt.subplots(figsize=figsize, dpi=300)
   xticks = jnp.linspace(-jnp.pi, jnp.pi, 9)  # 9 ticks from -pi to pi
   xlabels = ['$-\pi$',
@@ -366,7 +375,10 @@ def angular_distribution_plot(hist, xedges, yedges, figsize=[5.5,4.5], cmap='inf
            '$\\frac{\pi}{2}$',
            '$\\frac{3\pi}{4}$',
            '$\pi$']
-  im = ax.imshow(hist.T, origin='lower', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]], cmap=cmap, aspect='auto')
+  if jnp.isnan(vmin) and jnp.isnan(vmax):
+    im = ax.imshow(hist.T, origin='lower', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]], cmap=cmap, aspect='auto')
+  else:
+    im = ax.imshow(hist.T, origin='lower', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]], cmap=cmap, aspect='auto', vmin=vmin, vmax=vmax)
   ax.set_xlabel('$\\phi$')
   ax.set_ylabel('$\\theta$')
   ax.set_xticks(xticks)

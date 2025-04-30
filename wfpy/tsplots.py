@@ -24,8 +24,8 @@ def bnnhc_opt_plots(smin=100, smax=500, scale='log', aspect=0.9):
 
   fig, ax = wfpy.scatter_plot(x, 
  			      y_ene, 
-			      xlabel='Energy [K]',
-                              ylabel='Optimization steps',
+                              xlabel='Optimization steps',
+			      ylabel='Energy [K]',
           		      ylim=[ene-smin*std,ene+smax*std])
   ax.set_xscale(scale)
 
@@ -39,8 +39,8 @@ def bnnhc_opt_plots(smin=100, smax=500, scale='log', aspect=0.9):
 
   fig, ax = wfpy.scatter_plot(x, 
  			      y_pot, 
-			      xlabel='Potential energy [K]',
-                              ylabel='Optimization steps',
+                              xlabel='Optimization steps',
+			      ylabel='Potential energy [K]',
           		      ylim=[pot-smin*std,pot+smax*std])
   ax.set_xscale(scale)
   
@@ -160,7 +160,7 @@ def gbnnhc_snowball_plots(np, ndim, nwalkers):
   print('Density profile peaks:', r[xpeaks[0]])
   print('Density profile bottoms:', r[xshell[0]], '\n')
 
-  fig, ax = wfpy.scatter_plot(r, y, xlabel='$r_i$ [$a_0$]', ylabel='$n(r_i)$ [$a_0^{-1}$]')
+  fig, ax = wfpy.scatter_plot(r, y, xlabel='$r_{\\text{HeI}}$ [$a_0$]', ylabel='$n(r_{\\text{HeI}})$ [$a_0^{-1}$]')
   ax.scatter(r[xpeaks[0]], y[xpeaks[0]], s=155, marker='|', c=wfpy.colors[1])
   ax.scatter(r[xshell[0]], y[xshell[0]], s=155, marker='|', c=wfpy.colors[3])
   ax.set_xlim([0.0-0.15,15.0+0.15])
@@ -181,13 +181,16 @@ def gbnnhc_snowball_plots(np, ndim, nwalkers):
 
   # Correct orientation
   x = data.reshape([-1, nwalkers, np, ndim]) 
+ # x = data.reshape([-1, np, ndim]) 
   x_ave = jnp.mean(x, axis=0)
   x_ave_r = jnp.linalg.norm(x_ave, axis=-1)
   x_ave_1s = jnp.where(x_ave_r[...,None] < r[xshell[0]], x_ave, jnp.inf)
   nx, ny, nz = wfpy.vfbody_basis(x_ave_1s)
+ # nx, ny, nz = wfpy.fbody_basis(x_ave_1s)
  
   for i in range(nwalkers):
     x[:,i,...] = wfpy.vbasis_change(x[:,i,...], nx[i,...], ny[i,...], nz[i,...])
+ # x = wfpy.vbasis_change(x, nx, ny, nz)
 
   x = x.reshape([-1, np, ndim])
   qr = wfpy.vprofile_distance(x, np, ndim)
@@ -206,10 +209,10 @@ def gbnnhc_snowball_plots(np, ndim, nwalkers):
 
   rs_1s = signal.savgol_filter(r_1s, int(r_1s.size/10), 3)
   ys_1s = signal.savgol_filter(y_1s, int(y_1s.size/10), 3)
-  rp_1s = signal.find_peaks(ys_1s, height=0.15)
+  rp_1s = wfpy.find_peaks(ys_1s, npeaks=2, distance=50, height=0.15)
   print('1st shell pair density distribution peaks:', rs_1s[rp_1s[0]])
   
-  fig, ax = wfpy.scatter_plot(r_1s, y_1s, xlabel='$r_{ij}$ [$a_0$]', ylabel='$\\rho_{1s}(r_{ij})$ [$a_0^{-1}$]')
+  fig, ax = wfpy.scatter_plot(r_1s, y_1s, xlabel='$r_{\\text{HeHe}}$ [$a_0$]', ylabel='$r_{\\text{HeHe}}^2 \ \\rho_{1s}(r_{\\text{HeHe}})$ [$a_0^{-1}$]')
   ax.scatter(r_1s[rp_1s[0]], y_1s[rp_1s[0]], s=155, marker='|', c=wfpy.colors[1])
   ax.set_xlim([0.0-0.12,12.0+0.12])
   ax.set_ylim([0.0-0.00325, 0.325+0.00325])
@@ -228,12 +231,13 @@ def gbnnhc_snowball_plots(np, ndim, nwalkers):
   integral = jnp.sum(jnp.mean(r_2s[1:]-r_2s[:-1])*y_2s)
   print('Integral of the 2nd shell pair density distribution:', integral)
 
-  rs_2s = signal.savgol_filter(r_2s, int(r_2s.size/6), 3)
-  ys_2s = signal.savgol_filter(y_2s, int(y_2s.size/6), 3)
-  rp_2s = signal.find_peaks(ys_2s, distance=50, height=0.01)
+  rs_2s = signal.savgol_filter(r_2s, int(r_2s.size/10), 3)
+  ys_2s = signal.savgol_filter(y_2s, int(y_2s.size/10), 3)
+  npeaks = 3 if round(ave_n1s) == 12 else 2 
+  rp_2s = wfpy.find_peaks(ys_2s, npeaks=npeaks, distance=50, height=0.01)
   print('2st shell pair density distribution peaks:', rs_2s[rp_2s[0]], '\n')
   
-  fig, ax = wfpy.scatter_plot(r_2s, y_2s, xlabel='$r_{ij}$ [$a_0$]', ylabel='$\\rho_{2s}(r_{ij})$ [$a_0^{-1}$]')
+  fig, ax = wfpy.scatter_plot(r_2s, y_2s, xlabel='$r_{\\text{HeHe}}$ [$a_0$]', ylabel='$r_{\\text{HeHe}}^2 \ \\rho_{2s}(r_{\\text{HeHe}})$ [$a_0^{-1}$]')
   ax.scatter(r_2s[rp_2s[0]], y_2s[rp_2s[0]], s=155, marker='|', c=wfpy.colors[1])
   ax.set_xlim([0.0-0.25,25.0+0.25])
   ax.set_ylim([0.0-0.0012,0.12+0.0012])
@@ -242,16 +246,84 @@ def gbnnhc_snowball_plots(np, ndim, nwalkers):
   plt.close(fig) 
 
   # Angular histograms
+ # plt.rcParams['font.size']       = 20
+ # plt.rcParams['xtick.labelsize'] = 20
+ # plt.rcParams['ytick.labelsize'] = 20
+
   q_1s = x_1s[~jnp.isnan(x_1s)].reshape([-1,3])
   h_1s, xed_1s, yed_1s = wfpy.angular_distribution(q_1s)
-  fig, ax = wfpy.angular_distribution_plot(h_1s, xed_1s, yed_1s, legend='Angular density')
+  fig, ax = wfpy.angular_distribution_plot(h_1s, xed_1s, yed_1s, legend='Angular density', vmin=0.0, vmax=1.2)
   fig.tight_layout()
   fig.savefig('angular-density-1st-shell.png', transparent=True)
   plt.close(fig) 
 
   q_2s = x_2s[~jnp.isnan(x_2s)].reshape([-1,3])
   h_2s, xed_2s, yed_2s = wfpy.angular_distribution(q_2s)
-  fig, ax = wfpy.angular_distribution_plot(h_2s, xed_2s, yed_2s, legend='Angular density')
+  fig, ax = wfpy.angular_distribution_plot(h_2s, xed_2s, yed_2s, legend='Angular density', vmin=0.0, vmax=0.34)
   fig.tight_layout()
   fig.savefig('angular-density-2st-shell.png', transparent=True)
   plt.close(fig) 
+
+  return 
+
+def distribution_plots(data, np, ndim,
+                 figsize=[5.5, 4.5],
+                 centering=False):
+  """ """
+
+  dq = wfpy.vrelative_coordinates(data, np, ndim)
+  dr = jnp.linalg.norm(dq, axis=-1)
+  i, j = jnp.triu_indices(np, k=1)
+
+  dq = dq[:,i,j,:]
+  dr = dr[:,i,j]
+
+  dz, hdz = wfpy.distribution_histogram(dq[:,2], norm_type='dist', density=True, rmin=jnp.min(dq[:,2]))
+  dy, hdy = wfpy.distribution_histogram(dq[:,1], norm_type='dist', density=True, rmin=jnp.min(dq[:,1]))
+  dx, hdx = wfpy.distribution_histogram(dq[:,0], norm_type='dist', density=True, rmin=jnp.min(dq[:,0]))
+
+  if centering:
+    q = wfpy.vcentering(data, np, ndim)
+  else:
+    q = data.reshape([-1, np, ndim])
+
+  print(dq.shape)
+  print(q.shape)
+  
+  z, hz = wfpy.distribution_histogram(q[:,2], norm_type='dist', density=True, rmin=jnp.min(q[:,2]))
+  y, hy = wfpy.distribution_histogram(q[:,1], norm_type='dist', density=True, rmin=jnp.min(q[:,1]))
+  x, hx = wfpy.distribution_histogram(q[:,0], norm_type='dist', density=True, rmin=jnp.min(q[:,0]))
+
+  fig, ax = wfpy.scatter_plot(dz, hdz, xlabel='$z_{ij}$', ylabel='$P(z_{ij})$ [$r_0^{-1}$]')
+  fig.tight_layout()
+  fig.savefig('pdz-distribution.svg', transparent=True)
+  plt.close(fig)
+
+  fig, ax = wfpy.scatter_plot(dy, hdy, xlabel='$y_{ij}$', ylabel='$P(y_{ij})$ [$r_0^{-1}$]')
+  fig.tight_layout()
+  fig.savefig('pdy-distribution.svg', transparent=True)
+  plt.close(fig)
+
+  fig, ax = wfpy.scatter_plot(dx, hdx, xlabel='$x_{ij}$', ylabel='$P(x_{ij})$ [$r_0^{-1}$]')
+  fig.tight_layout()
+  fig.savefig('pdx-distribution.svg', transparent=True)
+  plt.close(fig)
+
+
+  fig, ax = wfpy.scatter_plot(z, hz, xlabel='$z_{i}$', ylabel='$P(z_{i})$ [$r_0^{-1}$]')
+  fig.tight_layout()
+  fig.savefig('pz-distribution.svg', transparent=True)
+  plt.close(fig)
+
+  fig, ax = wfpy.scatter_plot(y, hy, xlabel='$y_{i}$', ylabel='$P(y_{i})$ [$r_0^{-1}$]')
+  fig.tight_layout()
+  fig.savefig('py-distribution.svg', transparent=True)
+  plt.close(fig)
+
+  fig, ax = wfpy.scatter_plot(x, hx, xlabel='$x_{i}$', ylabel='$P(x_{i})$ [$r_0^{-1}$]')
+  fig.tight_layout()
+  fig.savefig('px-distribution.svg', transparent=True)
+  plt.close(fig)
+
+ 
+  return
